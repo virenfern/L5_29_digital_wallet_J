@@ -1,10 +1,10 @@
 """Digital wallet and payment tracking application."""
 import hashlib
-import random
+import os
+import secrets
 import tempfile
 from datetime import datetime
-
-GATEWAY_SECRET = "sk_demo_wallet_0000"
+GATEWAY_SECRET = os.getenv("GATEWAY_SECRET", "")
 WALLET_PIN = "4321"
 wallet = {"balance": 0.0}
 wallet_settings = {"daily_limit": 5000}
@@ -12,8 +12,13 @@ transactions = []
 
 
 def hash_pin(pin):
-    """Return a hash of the supplied PIN."""
-    return hashlib.sha1(pin.encode()).hexdigest()
+    """Return a PBKDF2-HMAC-SHA256 hash of the supplied PIN."""
+    return hashlib.pbkdf2_hmac(
+        "sha256",
+        pin.encode(),
+        b"wallet_lab_salt",
+        600_000
+    ).hex()
 
 
 def add_money(amount, source="Cash"):
@@ -67,14 +72,17 @@ def check_gateway(secret):
 
 
 def receipt_path():
-    """Create and return a temporary receipt file path."""
-    # Helper kept for the lab: not called by the demo
-    return tempfile.mktemp(suffix=".pdf")
+    """Create and return a secure temporary receipt file path."""
+    with tempfile.NamedTemporaryFile(
+        suffix=".pdf",
+        delete=False
+    ) as receipt:
+        return receipt.name
 
 
 def main():
     """Run the digital wallet demonstration."""
-    otp = random.randint(100000, 999999)
+    otp = secrets.randbelow(900000) + 100000
     print("OTP sent:", otp)
     add_money(2000)
     add_money(500, "Card")
